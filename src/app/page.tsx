@@ -214,6 +214,8 @@ export default function Home() {
             <a href="#how">How it works</a>
             <Link href="/login">Sign in</Link>
             <Link href="/login">Get started</Link>
+            <Link href="/privacy">Privacy</Link>
+            <Link href="/terms">Terms</Link>
           </div>
           <div className={styles.footerCopy}>
             © {new Date().getFullYear()} Relay. The WhatsApp assistant for every kind of organization.
