@@ -1,0 +1,514 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { useFormState, useFormStatus } from "react-dom";
+import { useRouter } from "next/navigation";
+import { QRCodeSVG } from "qrcode.react";
+import {
+  MessagesSquare,
+  Info,
+  MessageCircleQuestion,
+  Share2,
+  BarChart3,
+  LogOut,
+  Check,
+  Plus,
+  Pencil,
+  Trash2,
+  Copy,
+  X,
+  CalendarDays,
+  Infinity as InfinityIcon,
+} from "lucide-react";
+import { createBrowserSupabase } from "@/lib/supabase/client";
+import {
+  saveOrgUpdate,
+  createFaq,
+  updateFaq,
+  deleteFaq,
+  type ActionState,
+} from "./actions";
+import styles from "./dashboard.module.css";
+
+type Faq = { id: string; question: string; answer: string };
+type OrgInfo = { label: string; body: string; key_details: string; contact: string };
+type Tab = "info" | "faqs" | "share" | "usage";
+
+const EMPTY: ActionState = { ok: false };
+
+const NAV: { id: Tab; label: string; icon: typeof Info }[] = [
+  { id: "info", label: "Info", icon: Info },
+  { id: "faqs", label: "FAQs", icon: MessageCircleQuestion },
+  { id: "share", label: "Share", icon: Share2 },
+  { id: "usage", label: "Usage", icon: BarChart3 },
+];
+
+export default function DashboardClient({
+  orgName,
+  whatsappNumber,
+  info,
+  faqs,
+  usage,
+}: {
+  orgName: string;
+  whatsappNumber: string | null;
+  info: OrgInfo;
+  faqs: Faq[];
+  usage: { thisMonth: number; allTime: number };
+}) {
+  const router = useRouter();
+  const [tab, setTab] = useState<Tab>("info");
+  const [signingOut, setSigningOut] = useState(false);
+
+  async function signOut() {
+    setSigningOut(true);
+    const supabase = createBrowserSupabase();
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
+  }
+
+  return (
+    <div className={styles.shell}>
+      {/* ---- Top bar ---- */}
+      <header className={styles.topbar}>
+        <span className={styles.brand}>
+          <span className={styles.brandMark}>
+            <MessagesSquare size={18} strokeWidth={2.25} />
+          </span>
+          Relay
+        </span>
+        <span className={styles.orgName} title={orgName}>
+          {orgName}
+        </span>
+        <button className={styles.signout} onClick={signOut} disabled={signingOut}>
+          <LogOut size={16} strokeWidth={2.25} />
+          <span className={styles.signoutLabel}>{signingOut ? "Signing out…" : "Sign out"}</span>
+        </button>
+      </header>
+
+      <div className={styles.body}>
+        {/* ---- Sidebar (desktop) / bottom nav (mobile) ---- */}
+        <nav className={styles.nav} aria-label="Dashboard sections">
+          {NAV.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              className={`${styles.navItem} ${tab === id ? styles.navItemActive : ""}`}
+              onClick={() => setTab(id)}
+              aria-current={tab === id ? "page" : undefined}
+            >
+              <Icon size={20} strokeWidth={2.1} />
+              <span>{label}</span>
+            </button>
+          ))}
+        </nav>
+
+        {/* ---- Content ---- */}
+        <main className={styles.content}>
+          {tab === "info" && <InfoSection info={info} />}
+          {tab === "faqs" && <FaqsSection faqs={faqs} />}
+          {tab === "share" && <ShareSection whatsappNumber={whatsappNumber} />}
+          {tab === "usage" && <UsageSection usage={usage} />}
+        </main>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Shared bits ---------------- */
+
+function SectionHead({ title, sub }: { title: string; sub: string }) {
+  return (
+    <div className={styles.head}>
+      <h1 className={styles.h1}>{title}</h1>
+      <p className={styles.sub}>{sub}</p>
+    </div>
+  );
+}
+
+function SubmitButton({ label, pendingLabel }: { label: string; pendingLabel: string }) {
+  const { pending } = useFormStatus();
+  return (
+    <button type="submit" className={styles.primary} disabled={pending}>
+      {pending ? pendingLabel : label}
+    </button>
+  );
+}
+
+/* ---------------- Section 1: Info ---------------- */
+
+function InfoSection({ info }: { info: OrgInfo }) {
+  const [state, action] = useFormState(saveOrgUpdate, EMPTY);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (state.ok && state.ts) {
+      setSaved(true);
+      const t = setTimeout(() => setSaved(false), 3200);
+      return () => clearTimeout(t);
+    }
+  }, [state.ok, state.ts]);
+
+  return (
+    <section>
+      <SectionHead
+        title="Your information"
+        sub="This is what members get back when they text your assistant. Keep it current."
+      />
+
+      <form action={action} className={styles.card}>
+        <div className={styles.field}>
+          <label className={styles.label} htmlFor="label">
+            Label
+          </label>
+          <input
+            id="label"
+            name="label"
+            className={styles.input}
+            defaultValue={info.label}
+            placeholder="Opening hours / This week"
+          />
+        </div>
+
+        <div className={styles.field}>
+          <label className={styles.label} htmlFor="body">
+            Update &amp; announcements
+          </label>
+          <textarea
+            id="body"
+            name="body"
+            className={styles.textarea}
+            defaultValue={info.body}
+            rows={6}
+            placeholder="Share what's new, current notices, anything members should know…"
+          />
+        </div>
+
+        <div className={styles.field}>
+          <label className={styles.label} htmlFor="key_details">
+            Key details
+          </label>
+          <input
+            id="key_details"
+            name="key_details"
+            className={styles.input}
+            defaultValue={info.key_details}
+            placeholder="Mon–Fri 9am–5pm"
+          />
+        </div>
+
+        <div className={styles.field}>
+          <label className={styles.label} htmlFor="contact">
+            Contact info
+          </label>
+          <input
+            id="contact"
+            name="contact"
+            className={styles.input}
+            defaultValue={info.contact}
+            placeholder="Address, phone, email"
+          />
+        </div>
+
+        {state.error && <p className={styles.formError}>{state.error}</p>}
+
+        <div className={styles.formFooter}>
+          <SubmitButton label="Save" pendingLabel="Saving…" />
+          {saved && (
+            <span className={styles.savedNote} role="status">
+              <Check size={15} strokeWidth={2.5} />
+              Saved
+            </span>
+          )}
+        </div>
+      </form>
+    </section>
+  );
+}
+
+/* ---------------- Section 2: FAQs ---------------- */
+
+function FaqsSection({ faqs }: { faqs: Faq[] }) {
+  const [editing, setEditing] = useState<Faq | "new" | null>(null);
+
+  return (
+    <section>
+      <div className={styles.headRow}>
+        <SectionHead
+          title="FAQs"
+          sub="Question-and-answer pairs your assistant uses to reply accurately."
+        />
+        <button className={styles.primary} onClick={() => setEditing("new")}>
+          <Plus size={17} strokeWidth={2.5} />
+          Add FAQ
+        </button>
+      </div>
+
+      {faqs.length === 0 ? (
+        <div className={styles.empty}>
+          <span className={styles.emptyIcon}>
+            <MessageCircleQuestion size={26} strokeWidth={2} />
+          </span>
+          <h3 className={styles.emptyTitle}>No FAQs yet</h3>
+          <p className={styles.emptyText}>
+            Add your first question and answer so your assistant can reply instantly.
+          </p>
+          <button className={styles.primary} onClick={() => setEditing("new")}>
+            <Plus size={17} strokeWidth={2.5} />
+            Add your first FAQ
+          </button>
+        </div>
+      ) : (
+        <div className={styles.faqGrid}>
+          {faqs.map((faq) => (
+            <FaqCard key={faq.id} faq={faq} onEdit={() => setEditing(faq)} />
+          ))}
+        </div>
+      )}
+
+      {editing && (
+        <FaqModal
+          faq={editing === "new" ? null : editing}
+          onClose={() => setEditing(null)}
+        />
+      )}
+    </section>
+  );
+}
+
+function FaqCard({ faq, onEdit }: { faq: Faq; onEdit: () => void }) {
+  const [state, action] = useFormState(deleteFaq, EMPTY);
+  const [confirming, setConfirming] = useState(false);
+
+  return (
+    <article className={styles.faqCard}>
+      <h3 className={styles.faqQuestion}>{faq.question}</h3>
+      <p className={styles.faqAnswer}>{faq.answer}</p>
+
+      {state.error && <p className={styles.formError}>{state.error}</p>}
+
+      <div className={styles.faqActions}>
+        {confirming ? (
+          <form action={action} className={styles.confirmRow}>
+            <input type="hidden" name="id" value={faq.id} />
+            <span className={styles.confirmText}>Delete this FAQ?</span>
+            <ConfirmDeleteButton />
+            <button
+              type="button"
+              className={styles.ghostBtn}
+              onClick={() => setConfirming(false)}
+            >
+              Cancel
+            </button>
+          </form>
+        ) : (
+          <>
+            <button className={styles.iconBtn} onClick={onEdit}>
+              <Pencil size={15} strokeWidth={2.25} />
+              Edit
+            </button>
+            <button
+              className={`${styles.iconBtn} ${styles.iconBtnDanger}`}
+              onClick={() => setConfirming(true)}
+            >
+              <Trash2 size={15} strokeWidth={2.25} />
+              Delete
+            </button>
+          </>
+        )}
+      </div>
+    </article>
+  );
+}
+
+function ConfirmDeleteButton() {
+  const { pending } = useFormStatus();
+  return (
+    <button type="submit" className={styles.dangerBtn} disabled={pending}>
+      {pending ? "Deleting…" : "Delete"}
+    </button>
+  );
+}
+
+function FaqModal({ faq, onClose }: { faq: Faq | null; onClose: () => void }) {
+  const isEdit = faq !== null;
+  const [state, action] = useFormState(isEdit ? updateFaq : createFaq, EMPTY);
+  const lastTs = useRef<number | undefined>(undefined);
+
+  // Close once the action reports a fresh success.
+  useEffect(() => {
+    if (state.ok && state.ts && state.ts !== lastTs.current) {
+      lastTs.current = state.ts;
+      onClose();
+    }
+  }, [state.ok, state.ts, onClose]);
+
+  // Escape to close.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div className={styles.overlay} onMouseDown={onClose}>
+      <div
+        className={styles.modal}
+        role="dialog"
+        aria-modal="true"
+        aria-label={isEdit ? "Edit FAQ" : "Add FAQ"}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <div className={styles.modalHead}>
+          <h2 className={styles.modalTitle}>{isEdit ? "Edit FAQ" : "Add FAQ"}</h2>
+          <button className={styles.modalClose} onClick={onClose} aria-label="Close">
+            <X size={18} strokeWidth={2.25} />
+          </button>
+        </div>
+
+        <form action={action} className={styles.modalForm}>
+          {isEdit && <input type="hidden" name="id" value={faq.id} />}
+
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="faq-q">
+              Question
+            </label>
+            <input
+              id="faq-q"
+              name="question"
+              className={styles.input}
+              defaultValue={faq?.question ?? ""}
+              placeholder="What time do you open?"
+              autoFocus
+              required
+            />
+          </div>
+
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="faq-a">
+              Answer
+            </label>
+            <textarea
+              id="faq-a"
+              name="answer"
+              className={styles.textarea}
+              defaultValue={faq?.answer ?? ""}
+              rows={4}
+              placeholder="We're open Monday to Friday, 9am to 5pm."
+              required
+            />
+          </div>
+
+          {state.error && <p className={styles.formError}>{state.error}</p>}
+
+          <div className={styles.modalFooter}>
+            <button type="button" className={styles.ghostBtn} onClick={onClose}>
+              Cancel
+            </button>
+            <SubmitButton
+              label={isEdit ? "Save changes" : "Add FAQ"}
+              pendingLabel="Saving…"
+            />
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Section 3: Share ---------------- */
+
+function ShareSection({ whatsappNumber }: { whatsappNumber: string | null }) {
+  const digits = (whatsappNumber ?? "").replace(/\D/g, "");
+  const isPlaceholder = digits.length === 0;
+  const number = isPlaceholder ? "0000000000" : digits;
+  const link = `https://wa.me/${number}?text=hi`;
+
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2200);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  return (
+    <section>
+      <SectionHead
+        title="Share your assistant"
+        sub="Print this or share it so members can reach your assistant on WhatsApp."
+      />
+
+      <div className={styles.shareGrid}>
+        <div className={styles.card}>
+          <span className={styles.label}>Click-to-chat link</span>
+          <div className={styles.linkRow}>
+            <code className={styles.link}>{link}</code>
+            <button className={styles.copyBtn} onClick={copy}>
+              {copied ? (
+                <>
+                  <Check size={15} strokeWidth={2.5} />
+                  Copied
+                </>
+              ) : (
+                <>
+                  <Copy size={15} strokeWidth={2.25} />
+                  Copy
+                </>
+              )}
+            </button>
+          </div>
+          {isPlaceholder && (
+            <p className={styles.hint}>
+              This is a placeholder number — your real WhatsApp number will appear here once it&apos;s
+              set up.
+            </p>
+          )}
+        </div>
+
+        <div className={`${styles.card} ${styles.qrCard}`}>
+          <div className={styles.qrFrame}>
+            <QRCodeSVG value={link} size={168} level="M" fgColor="#0f1b2d" bgColor="#ffffff" />
+          </div>
+          <p className={styles.qrCaption}>Scan to start a chat</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ---------------- Section 4: Usage ---------------- */
+
+function UsageSection({ usage }: { usage: { thisMonth: number; allTime: number } }) {
+  const fmt = new Intl.NumberFormat();
+  return (
+    <section>
+      <SectionHead
+        title="Usage"
+        sub="Conversations your assistant has handled."
+      />
+
+      <div className={styles.statGrid}>
+        <div className={styles.statCard}>
+          <span className={styles.statIcon}>
+            <CalendarDays size={20} strokeWidth={2.1} />
+          </span>
+          <span className={styles.statValue}>{fmt.format(usage.thisMonth)}</span>
+          <span className={styles.statLabel}>Conversations this month</span>
+        </div>
+
+        <div className={styles.statCard}>
+          <span className={`${styles.statIcon} ${styles.statIconCoral}`}>
+            <InfinityIcon size={20} strokeWidth={2.1} />
+          </span>
+          <span className={styles.statValue}>{fmt.format(usage.allTime)}</span>
+          <span className={styles.statLabel}>Conversations all-time</span>
+        </div>
+      </div>
+    </section>
+  );
+}
