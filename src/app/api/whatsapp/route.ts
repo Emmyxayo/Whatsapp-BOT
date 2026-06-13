@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { generateReply, type ConversationTurn } from "@/lib/claude";
+import { detectIntentReply } from "@/lib/intent";
 import { sendWhatsAppText } from "@/lib/whatsapp";
 
 // A conversation is treated as a session within WhatsApp's 24-hour window.
@@ -93,18 +94,32 @@ export async function POST(req: NextRequest) {
             { role: "assistant" as const, content: r.message_out as string },
           ]);
 
-    const reply = await generateReply(
-      text,
-      {
-        orgName: organization.name,
-        label: update?.label,
-        body: update?.body,
+    // Fast path: clear, common questions answered straight from the org's
+    // fields — cheaper, faster, and perfectly consistent. Skipped on first
+    // contact so the warm greeting isn't bypassed; anything ambiguous or
+    // unanswered by a field falls through to Claude.
+    let reply: string | null = null;
+    if (!isFirstContact) {
+      reply = detectIntentReply(text, {
         keyDetails: update?.key_details,
         contact: update?.contact,
-        faqs: faqs ?? [],
-      },
-      { history, isFirstContact }
-    );
+      });
+    }
+
+    if (reply === null) {
+      reply = await generateReply(
+        text,
+        {
+          orgName: organization.name,
+          label: update?.label,
+          body: update?.body,
+          keyDetails: update?.key_details,
+          contact: update?.contact,
+          faqs: faqs ?? [],
+        },
+        { history, isFirstContact }
+      );
+    }
 
     await sendWhatsAppText(phoneNumberId, from, reply);
 
