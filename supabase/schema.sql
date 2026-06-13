@@ -54,6 +54,9 @@ create table if not exists conversations (
 create index if not exists idx_org_updates_org on org_updates(organization_id);
 create index if not exists idx_faqs_org on faqs(organization_id);
 create index if not exists idx_conversations_org on conversations(organization_id);
+-- Fast lookup of a single member's recent messages (conversation memory).
+create index if not exists idx_conversations_member
+  on conversations(organization_id, member_wa_id, created_at desc);
 
 -- ---- Seed one organization so you can test immediately ----
 -- After you have a real WhatsApp phone_number_id, replace 'TEST_PHONE_NUMBER_ID'.

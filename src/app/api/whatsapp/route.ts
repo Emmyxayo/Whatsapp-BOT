@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
-import { generateReply } from "@/lib/claude";
+import { generateReply, type ConversationTurn } from "@/lib/claude";
 import { sendWhatsAppText } from "@/lib/whatsapp";
+
+// A conversation is treated as a session within WhatsApp's 24-hour window.
+// A message after a gap longer than this counts as a fresh start: we greet
+// warmly and don't carry stale history into the prompt.
+const SESSION_GAP_MS = 6 * 60 * 60 * 1000; // 6 hours
+
+// How many recent exchanges to remember (each is one in + one out message,
+// so ~8 messages of context).
+const HISTORY_EXCHANGES = 4;
 
 // ---- GET: Meta calls this once to verify your webhook ----
 export async function GET(req: NextRequest) {
@@ -45,8 +54,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    // Load this organization's updates + FAQs.
-    const [{ data: update }, { data: faqs }] = await Promise.all([
+    // Load this organization's updates + FAQs, plus this member's recent
+    // messages so Claude has short-term memory.
+    const [{ data: update }, { data: faqs }, { data: recentRows }] = await Promise.all([
       supabase
         .from("org_updates")
         .select("label, body, key_details, contact")
@@ -55,16 +65,46 @@ export async function POST(req: NextRequest) {
         .limit(1)
         .maybeSingle(),
       supabase.from("faqs").select("question, answer").eq("organization_id", organization.id),
+      supabase
+        .from("conversations")
+        .select("message_in, message_out, created_at")
+        .eq("organization_id", organization.id)
+        .eq("member_wa_id", from)
+        .order("created_at", { ascending: false })
+        .limit(HISTORY_EXCHANGES),
     ]);
 
-    const reply = await generateReply(text, {
-      orgName: organization.name,
-      label: update?.label,
-      body: update?.body,
-      keyDetails: update?.key_details,
-      contact: update?.contact,
-      faqs: faqs ?? [],
-    });
+    // Decide whether this message continues the current session or starts a
+    // fresh one. The latest stored message's age is the gap.
+    const lastAt = recentRows?.[0]?.created_at
+      ? new Date(recentRows[0].created_at).getTime()
+      : null;
+    const isFirstContact = lastAt === null || Date.now() - lastAt > SESSION_GAP_MS;
+
+    // Build chronological history from complete exchanges only (keeps the
+    // user/assistant turns cleanly alternating). Dropped on a fresh start.
+    const history: ConversationTurn[] = isFirstContact
+      ? []
+      : [...recentRows!]
+          .reverse()
+          .filter((r) => r.message_in && r.message_out)
+          .flatMap((r) => [
+            { role: "user" as const, content: r.message_in as string },
+            { role: "assistant" as const, content: r.message_out as string },
+          ]);
+
+    const reply = await generateReply(
+      text,
+      {
+        orgName: organization.name,
+        label: update?.label,
+        body: update?.body,
+        keyDetails: update?.key_details,
+        contact: update?.contact,
+        faqs: faqs ?? [],
+      },
+      { history, isFirstContact }
+    );
 
     await sendWhatsAppText(phoneNumberId, from, reply);
 
