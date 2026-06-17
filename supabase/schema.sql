@@ -23,14 +23,21 @@ create table if not exists organizations (
   created_at               timestamptz default now()
 );
 
--- The single thing members/customers pull. Admin edits this whenever info changes.
+-- The org's knowledge the assistant reasons over. Split into distinct areas so
+-- the bot can pull the right answer and tell the member which area it relates to.
+-- Admin edits this whenever info changes; the app reads the most recent row.
+-- (Upgrading an existing database from the old single-blob shape? See the
+--  "MIGRATION" block near the bottom of this file.)
 create table if not exists org_updates (
   id              uuid primary key default gen_random_uuid(),
   organization_id uuid references organizations(id) on delete cascade,
-  label           text,                 -- e.g. "Opening hours" or "This week"
-  body            text,                 -- the main update / announcements
-  key_details     text,                 -- e.g. hours, schedule, service times
-  contact         text,                 -- address, contact, anything else
+  about           text,                 -- general "about us" / anything that doesn't fit a field
+  hours           text,                 -- hours, schedule, service / opening times
+  location        text,                 -- address, directions, how to find us
+  announcements   text,                 -- this week / latest news / current notices
+  contact         text,                 -- phone, email, who to reach
+  giving          text,                 -- giving, payments, donations, fees, account details
+  events          text,                 -- upcoming events
   updated_at      timestamptz default now()
 );
 
@@ -91,3 +98,36 @@ insert into regions (id, name)
 insert into organizations (region_id, name, whatsapp_phone_number_id, whatsapp_display_number)
   values ('11111111-1111-1111-1111-111111111111', 'Test Organization', 'TEST_PHONE_NUMBER_ID', '+234...')
   on conflict (whatsapp_phone_number_id) do nothing;
+
+-- =====================================================================
+-- MIGRATION: old single-blob org_updates -> structured knowledge fields
+-- Run this ONCE, and ONLY if your database still has the old org_updates
+-- columns (label, body, key_details). Brand-new databases created from the
+-- CREATE TABLE above already have the new shape and should SKIP this block.
+-- It is safe and idempotent: it adds the new columns if missing, then copies
+-- the old content across WITHOUT overwriting anything already set and WITHOUT
+-- dropping the old columns, so no existing content is ever lost.
+-- =====================================================================
+-- alter table org_updates add column if not exists about         text;
+-- alter table org_updates add column if not exists hours         text;
+-- alter table org_updates add column if not exists location      text;
+-- alter table org_updates add column if not exists announcements text;
+-- alter table org_updates add column if not exists giving        text;
+-- alter table org_updates add column if not exists events        text;
+-- -- (contact already exists from the old schema and is kept as-is.)
+--
+-- update org_updates set
+--   hours         = coalesce(hours, key_details),   -- old key_details was hours/schedule
+--   announcements = coalesce(announcements, body),  -- old body was the announcements blob
+--   location      = coalesce(location, contact),    -- old contact mixed address + contact;
+--                                                   -- copy it so location answers keep working
+--                                                   -- (contact column is left untouched too)
+--   about         = coalesce(about, label)          -- preserve the old heading text
+-- where hours is null or announcements is null or location is null or about is null;
+--
+-- The old columns (label, body, key_details) are intentionally left in place as
+-- a backup. Once you've confirmed the new fields look right in the dashboard you
+-- may drop them if you wish:
+--   alter table org_updates drop column if exists label;
+--   alter table org_updates drop column if exists body;
+--   alter table org_updates drop column if exists key_details;

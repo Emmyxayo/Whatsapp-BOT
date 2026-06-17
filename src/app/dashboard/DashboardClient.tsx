@@ -22,6 +22,12 @@ import {
   LifeBuoy,
   User,
   Clock,
+  MapPin,
+  Megaphone,
+  Phone,
+  HandCoins,
+  FileText,
+  Sparkles,
 } from "lucide-react";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import {
@@ -32,6 +38,7 @@ import {
   resolveEscalation,
   type ActionState,
 } from "./actions";
+import { ORG_TEMPLATES, type OrgKnowledge } from "@/lib/templates";
 import styles from "./dashboard.module.css";
 
 type Faq = { id: string; question: string; answer: string };
@@ -42,7 +49,7 @@ type Escalation = {
   reason: string;
   time: string;
 };
-type OrgInfo = { label: string; body: string; key_details: string; contact: string };
+type OrgInfo = OrgKnowledge;
 type Tab = "info" | "faqs" | "handoffs" | "share" | "usage";
 
 const EMPTY: ActionState = { ok: false };
@@ -162,9 +169,83 @@ function SubmitButton({ label, pendingLabel }: { label: string; pendingLabel: st
 
 /* ---------------- Section 1: Info ---------------- */
 
+// Each knowledge area the assistant reads from. Ordered the way an org tends to
+// think about itself, with a clear label, helper text and the right input shape.
+const INFO_FIELDS: {
+  key: keyof OrgKnowledge;
+  label: string;
+  hint: string;
+  icon: typeof Info;
+  rows: number;
+  placeholder: string;
+}[] = [
+  {
+    key: "about",
+    label: "About",
+    hint: "A general intro, and anything that doesn't fit the other areas.",
+    icon: FileText,
+    rows: 3,
+    placeholder: "Who you are, in a sentence or two…",
+  },
+  {
+    key: "hours",
+    label: "Hours & schedule",
+    hint: "Opening times, service times, term dates.",
+    icon: Clock,
+    rows: 3,
+    placeholder: "Mon–Fri 9am–5pm\nSunday service 10am",
+  },
+  {
+    key: "location",
+    label: "Location & directions",
+    hint: "Address, how to find you, parking, landmarks.",
+    icon: MapPin,
+    rows: 3,
+    placeholder: "123 Main Street, City. Near the market.",
+  },
+  {
+    key: "announcements",
+    label: "This week / announcements",
+    hint: "Current news and notices. Update this often.",
+    icon: Megaphone,
+    rows: 4,
+    placeholder: "What's new this week, special notices…",
+  },
+  {
+    key: "contact",
+    label: "Contact",
+    hint: "Phone, email, who to reach.",
+    icon: Phone,
+    rows: 3,
+    placeholder: "Phone: …\nEmail: …",
+  },
+  {
+    key: "giving",
+    label: "Giving / payments",
+    hint: "Giving, donations, fees, account or payment details.",
+    icon: HandCoins,
+    rows: 4,
+    placeholder: "Bank, account name & number, payment methods…",
+  },
+  {
+    key: "events",
+    label: "Upcoming events",
+    hint: "Dates and what's coming up.",
+    icon: CalendarDays,
+    rows: 3,
+    placeholder: "- 12 Jul — Open day\n- 20 Jul — Workshop",
+  },
+];
+
 function InfoSection({ info }: { info: OrgInfo }) {
   const [state, action] = useFormState(saveOrgUpdate, EMPTY);
   const [saved, setSaved] = useState(false);
+
+  // Controlled so the template picker can fill every field at once. Seeded from
+  // the org's saved values.
+  const [values, setValues] = useState<OrgKnowledge>(info);
+  const setField = (key: keyof OrgKnowledge, value: string) =>
+    setValues((v) => ({ ...v, [key]: value }));
 
   useEffect(() => {
     if (state.ok && state.ts) {
@@ -178,62 +259,32 @@ function InfoSection({ info }: { info: OrgInfo }) {
     <section>
       <SectionHead
         title="Your information"
-        sub="This is what members get back when they text your assistant. Keep it current."
+        sub="This is what members get back when they text your assistant. Each area is answered separately — keep them current."
       />
 
+      <TemplatePicker onApply={(fields) => setValues(fields)} hasContent={Object.values(values).some((v) => v.trim())} />
+
       <form action={action} className={styles.card}>
-        <div className={styles.field}>
-          <label className={styles.label} htmlFor="label">
-            Label
-          </label>
-          <input
-            id="label"
-            name="label"
-            className={styles.input}
-            defaultValue={info.label}
-            placeholder="Opening hours / This week"
-          />
-        </div>
-
-        <div className={styles.field}>
-          <label className={styles.label} htmlFor="body">
-            Update &amp; announcements
-          </label>
-          <textarea
-            id="body"
-            name="body"
-            className={styles.textarea}
-            defaultValue={info.body}
-            rows={6}
-            placeholder="Share what's new, current notices, anything members should know…"
-          />
-        </div>
-
-        <div className={styles.field}>
-          <label className={styles.label} htmlFor="key_details">
-            Key details
-          </label>
-          <input
-            id="key_details"
-            name="key_details"
-            className={styles.input}
-            defaultValue={info.key_details}
-            placeholder="Mon–Fri 9am–5pm"
-          />
-        </div>
-
-        <div className={styles.field}>
-          <label className={styles.label} htmlFor="contact">
-            Contact info
-          </label>
-          <input
-            id="contact"
-            name="contact"
-            className={styles.input}
-            defaultValue={info.contact}
-            placeholder="Address, phone, email"
-          />
-        </div>
+        {INFO_FIELDS.map(({ key, label, hint, icon: Icon, rows, placeholder }) => (
+          <div className={styles.field} key={key}>
+            <label className={styles.fieldLabel} htmlFor={key}>
+              <span className={styles.fieldIcon}>
+                <Icon size={15} strokeWidth={2.25} />
+              </span>
+              {label}
+            </label>
+            <p className={styles.fieldHint}>{hint}</p>
+            <textarea
+              id={key}
+              name={key}
+              className={styles.textarea}
+              value={values[key]}
+              onChange={(e) => setField(key, e.target.value)}
+              rows={rows}
+              placeholder={placeholder}
+            />
+          </div>
+        ))}
 
         {state.error && <p className={styles.formError}>{state.error}</p>}
 
@@ -248,6 +299,57 @@ function InfoSection({ info }: { info: OrgInfo }) {
         </div>
       </form>
     </section>
+  );
+}
+
+// Pre-built starting points per vertical. Applying one fills the form fields
+// (which the admin then edits) so a new org is useful fast. Confirms first when
+// there's already content, so a click never wipes real data by surprise.
+function TemplatePicker({
+  onApply,
+  hasContent,
+}: {
+  onApply: (fields: OrgKnowledge) => void;
+  hasContent: boolean;
+}) {
+  const [pending, setPending] = useState<string | null>(null);
+
+  function choose(templateId: string) {
+    const template = ORG_TEMPLATES.find((t) => t.id === templateId);
+    if (!template) return;
+    if (hasContent && pending !== templateId) {
+      setPending(templateId); // ask for a second click to confirm overwrite
+      return;
+    }
+    onApply(template.fields);
+    setPending(null);
+  }
+
+  return (
+    <div className={styles.templateBar}>
+      <span className={styles.templateLead}>
+        <Sparkles size={15} strokeWidth={2.25} />
+        Start from a template
+      </span>
+      <div className={styles.templateRow}>
+        {ORG_TEMPLATES.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            className={`${styles.templateBtn} ${pending === t.id ? styles.templateBtnConfirm : ""}`}
+            onClick={() => choose(t.id)}
+            title={t.blurb}
+          >
+            {pending === t.id ? "Replace current?" : t.label}
+          </button>
+        ))}
+      </div>
+      {pending && (
+        <button type="button" className={styles.templateCancel} onClick={() => setPending(null)}>
+          Cancel
+        </button>
+      )}
+    </div>
   );
 }
 

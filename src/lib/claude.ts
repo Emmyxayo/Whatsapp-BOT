@@ -4,10 +4,14 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 
 type OrgContext = {
   orgName: string;
-  label?: string | null;
-  body?: string | null;
-  keyDetails?: string | null;
+  // Structured knowledge areas. Any of these may be empty for a given org.
+  about?: string | null;
+  hours?: string | null;
+  location?: string | null;
+  announcements?: string | null;
   contact?: string | null;
+  giving?: string | null;
+  events?: string | null;
   faqs: { question: string; answer: string }[];
 };
 
@@ -38,6 +42,25 @@ export async function generateReply(
     ? ctx.faqs.map((f) => `Q: ${f.question}\nA: ${f.answer}`).join("\n\n")
     : "None provided.";
 
+  // Build the knowledge block from only the areas this org has filled in. Each
+  // section is clearly headed so Claude can pull from the right one and name the
+  // area in its reply. Empty areas are omitted entirely — combined with the
+  // strict "only answer from what's below" rule, that means the bot honestly
+  // says it doesn't have anything the org hasn't provided.
+  const sections: [string, string | null | undefined][] = [
+    ["ABOUT", ctx.about],
+    ["HOURS & SCHEDULE", ctx.hours],
+    ["LOCATION & DIRECTIONS", ctx.location],
+    ["THIS WEEK / ANNOUNCEMENTS", ctx.announcements],
+    ["CONTACT", ctx.contact],
+    ["GIVING / PAYMENTS", ctx.giving],
+    ["UPCOMING EVENTS", ctx.events],
+  ];
+  const knowledgeBlock = sections
+    .filter(([, value]) => value && value.trim())
+    .map(([heading, value]) => `${heading}:\n${value!.trim()}`)
+    .join("\n\n");
+
   // A warm, short welcome on first contact (or after a long gap) instead of
   // dumping every detail. If they already asked something specific, Claude
   // answers it directly rather than just listing options.
@@ -62,18 +85,16 @@ policies — that is not written below. Do not fill gaps with general knowledge.
 If the answer isn't in the information, say so honestly (e.g. "I don't have that
 detail") and offer to take a message for the team or point them to the contact
 details below — never make something up.
+The information is grouped into areas (hours, location, announcements, contact,
+giving/payments, upcoming events, about). Pull your answer from the area that
+fits the question, and lightly signal which area it relates to so the member has
+context (e.g. "Our hours are…", "For giving, you can…", "Coming up…").
 Be warm, brief (2-5 sentences), and clear. Do not discuss anything unrelated to
 this organization. The recent messages give you context — use them so follow-up
 questions make sense.${firstContactGuidance}
 
-${ctx.label ?? "LATEST UPDATE"}:
-${ctx.body ?? "No update posted yet."}
-
-KEY DETAILS:
-${ctx.keyDetails ?? "Not provided."}
-
-CONTACT:
-${ctx.contact ?? "Not provided."}
+INFORMATION ABOUT ${ctx.orgName.toUpperCase()}:
+${knowledgeBlock || "No information has been added yet."}
 
 FREQUENTLY ASKED:
 ${faqBlock}`;

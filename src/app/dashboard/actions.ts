@@ -26,10 +26,13 @@ export async function saveOrgUpdate(_prev: ActionState, formData: FormData): Pro
 
   const { error } = await db.from("org_updates").insert({
     organization_id: organizationId,
-    label: String(formData.get("label") ?? ""),
-    body: String(formData.get("body") ?? ""),
-    key_details: String(formData.get("key_details") ?? ""),
+    about: String(formData.get("about") ?? ""),
+    hours: String(formData.get("hours") ?? ""),
+    location: String(formData.get("location") ?? ""),
+    announcements: String(formData.get("announcements") ?? ""),
     contact: String(formData.get("contact") ?? ""),
+    giving: String(formData.get("giving") ?? ""),
+    events: String(formData.get("events") ?? ""),
   });
 
   if (error) return { ok: false, error: "Couldn't save. Please try again." };

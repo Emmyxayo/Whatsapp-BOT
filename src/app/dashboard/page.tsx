@@ -25,7 +25,7 @@ export default async function Dashboard() {
 
   const { data: latest } = await db
     .from("org_updates")
-    .select("label, body, key_details, contact")
+    .select("about, hours, location, announcements, contact, giving, events")
     .eq("organization_id", organizationId)
     .order("updated_at", { ascending: false })
     .limit(1)
@@ -82,10 +82,13 @@ export default async function Dashboard() {
       orgName={organization?.name ?? "Your organization"}
       whatsappNumber={organization?.whatsapp_display_number ?? null}
       info={{
-        label: latest?.label ?? "",
-        body: latest?.body ?? "",
-        key_details: latest?.key_details ?? "",
+        about: latest?.about ?? "",
+        hours: latest?.hours ?? "",
+        location: latest?.location ?? "",
+        announcements: latest?.announcements ?? "",
         contact: latest?.contact ?? "",
+        giving: latest?.giving ?? "",
+        events: latest?.events ?? "",
       }}
       faqs={faqs ?? []}
       escalations={escalations}

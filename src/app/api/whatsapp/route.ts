@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
     const [{ data: update }, { data: faqs }, { data: recentRows }] = await Promise.all([
       supabase
         .from("org_updates")
-        .select("label, body, key_details, contact")
+        .select("about, hours, location, announcements, contact, giving, events")
         .eq("organization_id", organization.id)
         .order("updated_at", { ascending: false })
         .limit(1)
@@ -149,8 +149,11 @@ export async function POST(req: NextRequest) {
     let reply: string | null = null;
     if (!isFirstContact) {
       reply = detectIntentReply(text, {
-        keyDetails: update?.key_details,
+        hours: update?.hours,
+        location: update?.location,
         contact: update?.contact,
+        giving: update?.giving,
+        events: update?.events,
       });
     }
 
@@ -159,10 +162,13 @@ export async function POST(req: NextRequest) {
         text,
         {
           orgName: organization.name,
-          label: update?.label,
-          body: update?.body,
-          keyDetails: update?.key_details,
+          about: update?.about,
+          hours: update?.hours,
+          location: update?.location,
+          announcements: update?.announcements,
           contact: update?.contact,
+          giving: update?.giving,
+          events: update?.events,
           faqs: faqs ?? [],
         },
         { history, isFirstContact }
