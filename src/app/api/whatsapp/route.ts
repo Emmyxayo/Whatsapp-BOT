@@ -14,6 +14,15 @@ const SESSION_GAP_MS = 6 * 60 * 60 * 1000; // 6 hours
 // so ~8 messages of context).
 const HISTORY_EXCHANGES = 4;
 
+// Per-member rate limit: cap how many messages one WhatsApp number can have us
+// process in a short window. Protects against abuse and runaway Claude costs.
+// A normal back-and-forth stays well under this; a flood gets one heads-up then
+// goes quiet until the window clears.
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+const RATE_LIMIT_MAX = 10; // messages per member per window
+const RATE_LIMIT_NOTICE =
+  "You've sent a lot of messages very quickly — give me a moment to catch up and try again shortly. 🙏";
+
 // ---- GET: Meta calls this once to verify your webhook ----
 export async function GET(req: NextRequest) {
   const params = req.nextUrl.searchParams;
@@ -58,23 +67,52 @@ export async function POST(req: NextRequest) {
 
     // Load this organization's updates + FAQs, plus this member's recent
     // messages so Claude has short-term memory.
-    const [{ data: update }, { data: faqs }, { data: recentRows }] = await Promise.all([
-      supabase
-        .from("org_updates")
-        .select("about, hours, location, announcements, contact, giving, events")
-        .eq("organization_id", organization.id)
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-      supabase.from("faqs").select("question, answer").eq("organization_id", organization.id),
-      supabase
-        .from("conversations")
-        .select("message_in, message_out, created_at")
-        .eq("organization_id", organization.id)
-        .eq("member_wa_id", from)
-        .order("created_at", { ascending: false })
-        .limit(HISTORY_EXCHANGES),
-    ]);
+    const [{ data: update }, { data: faqs }, { data: recentRows }, { count: recentCount }] =
+      await Promise.all([
+        supabase
+          .from("org_updates")
+          .select("about, hours, location, announcements, contact, giving, events")
+          .eq("organization_id", organization.id)
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase.from("faqs").select("question, answer").eq("organization_id", organization.id),
+        supabase
+          .from("conversations")
+          .select("message_in, message_out, created_at")
+          .eq("organization_id", organization.id)
+          .eq("member_wa_id", from)
+          .order("created_at", { ascending: false })
+          .limit(HISTORY_EXCHANGES),
+        // How many messages we've processed for this member in the rate window.
+        supabase
+          .from("conversations")
+          .select("*", { count: "exact", head: true })
+          .eq("organization_id", organization.id)
+          .eq("member_wa_id", from)
+          .gte("created_at", new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString()),
+      ]);
+
+    // Rate limit: if this member is over the cap, don't run the (expensive)
+    // pipeline. Send a single gentle heads-up — detected by checking whether the
+    // last reply we logged was already the notice — then go quiet so a flood
+    // can't loop. We log the one notice so subsequent floods see it and stay
+    // silent; we don't process or bill anything for them.
+    if ((recentCount ?? 0) >= RATE_LIMIT_MAX) {
+      console.warn(
+        `Rate limit: ${from} hit ${recentCount} messages in ${RATE_LIMIT_WINDOW_MS}ms for org ${organization.id}`
+      );
+      if (recentRows?.[0]?.message_out !== RATE_LIMIT_NOTICE) {
+        await sendWhatsAppText(phoneNumberId, from, RATE_LIMIT_NOTICE);
+        await supabase.from("conversations").insert({
+          organization_id: organization.id,
+          member_wa_id: from,
+          message_in: text,
+          message_out: RATE_LIMIT_NOTICE,
+        });
+      }
+      return NextResponse.json({ ok: true });
+    }
 
     // Decide whether this message continues the current session or starts a
     // fresh one. The latest stored message's age is the gap.

@@ -26,6 +26,15 @@ type Intent = {
   prefix: string;
 };
 
+// Human-friendly topic name per intent, used by analytics to group questions.
+const TOPIC_LABEL: Record<string, string> = {
+  hours: "Hours & schedule",
+  location: "Location",
+  giving: "Giving / payments",
+  events: "Events",
+  contact: "Contact",
+};
+
 const INTENTS: Intent[] = [
   {
     name: "hours",
@@ -90,4 +99,20 @@ export function detectIntentReply(message: string, fields: IntentFields): string
     }
   }
   return null;
+}
+
+const GREETING = /^(hi|hello|hey|hiya|yo|good (morning|afternoon|evening)|gm|hey there|sup|how far|how (are|r) you)\b/i;
+
+// Classifies a member message into a coarse topic for analytics ("what members
+// ask about"). Reuses the same intent patterns as the fast-path, plus greeting
+// detection; anything unmatched is "Other". Best-effort — works on any language
+// that happens to share the keywords, and degrades gracefully to "Other".
+export function classifyTopic(message: string): string {
+  const text = message.trim();
+  if (!text) return "Other";
+  if (GREETING.test(text)) return "Greeting";
+  for (const intent of INTENTS) {
+    if (intent.test.test(text)) return TOPIC_LABEL[intent.name] ?? "Other";
+  }
+  return "Other";
 }

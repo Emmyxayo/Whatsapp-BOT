@@ -28,6 +28,10 @@ import {
   HandCoins,
   FileText,
   Sparkles,
+  CalendarClock,
+  TrendingUp,
+  AlertTriangle,
+  HelpCircle,
 } from "lucide-react";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import {
@@ -49,8 +53,24 @@ type Escalation = {
   reason: string;
   time: string;
 };
+type Counted = { label: string; count: number };
+type AttentionItem = {
+  kind: "escalated" | "unanswered";
+  memberWaId: string | null;
+  message: string;
+  note: string | null;
+  time: string;
+};
+type Analytics = {
+  thisMonth: number;
+  allTime: number;
+  busiestDay: Counted | null;
+  busiestHour: Counted | null;
+  topTopics: Counted[];
+  needsAttention: AttentionItem[];
+};
 type OrgInfo = OrgKnowledge;
-type Tab = "info" | "faqs" | "handoffs" | "share" | "usage";
+type Tab = "info" | "faqs" | "handoffs" | "share" | "analytics";
 
 const EMPTY: ActionState = { ok: false };
 
@@ -59,7 +79,7 @@ const NAV: { id: Tab; label: string; icon: typeof Info }[] = [
   { id: "faqs", label: "FAQs", icon: MessageCircleQuestion },
   { id: "handoffs", label: "Handoffs", icon: LifeBuoy },
   { id: "share", label: "Share", icon: Share2 },
-  { id: "usage", label: "Usage", icon: BarChart3 },
+  { id: "analytics", label: "Analytics", icon: BarChart3 },
 ];
 
 // Friendly label for why a handoff was raised.
@@ -75,14 +95,14 @@ export default function DashboardClient({
   info,
   faqs,
   escalations,
-  usage,
+  analytics,
 }: {
   orgName: string;
   whatsappNumber: string | null;
   info: OrgInfo;
   faqs: Faq[];
   escalations: Escalation[];
-  usage: { thisMonth: number; allTime: number };
+  analytics: Analytics;
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("info");
@@ -140,7 +160,7 @@ export default function DashboardClient({
           {tab === "faqs" && <FaqsSection faqs={faqs} />}
           {tab === "handoffs" && <HandoffsSection escalations={escalations} />}
           {tab === "share" && <ShareSection whatsappNumber={whatsappNumber} />}
-          {tab === "usage" && <UsageSection usage={usage} />}
+          {tab === "analytics" && <AnalyticsSection analytics={analytics} />}
         </main>
       </div>
     </div>
@@ -685,23 +705,28 @@ function ShareSection({ whatsappNumber }: { whatsappNumber: string | null }) {
   );
 }
 
-/* ---------------- Section 5: Usage ---------------- */
+/* ---------------- Section 5: Analytics ---------------- */
 
-function UsageSection({ usage }: { usage: { thisMonth: number; allTime: number } }) {
+const ATTENTION_REASON: Record<string, string> = REASON_LABEL;
+
+function AnalyticsSection({ analytics }: { analytics: Analytics }) {
   const fmt = new Intl.NumberFormat();
+  const maxTopic = Math.max(1, ...analytics.topTopics.map((t) => t.count));
+
   return (
     <section>
       <SectionHead
-        title="Usage"
-        sub="Conversations your assistant has handled."
+        title="Analytics"
+        sub="How members are using your assistant, and what to improve. Some figures fill in as you get more messages."
       />
 
+      {/* Headline figures */}
       <div className={styles.statGrid}>
         <div className={styles.statCard}>
           <span className={styles.statIcon}>
             <CalendarDays size={20} strokeWidth={2.1} />
           </span>
-          <span className={styles.statValue}>{fmt.format(usage.thisMonth)}</span>
+          <span className={styles.statValue}>{fmt.format(analytics.thisMonth)}</span>
           <span className={styles.statLabel}>Conversations this month</span>
         </div>
 
@@ -709,9 +734,105 @@ function UsageSection({ usage }: { usage: { thisMonth: number; allTime: number }
           <span className={`${styles.statIcon} ${styles.statIconCoral}`}>
             <InfinityIcon size={20} strokeWidth={2.1} />
           </span>
-          <span className={styles.statValue}>{fmt.format(usage.allTime)}</span>
+          <span className={styles.statValue}>{fmt.format(analytics.allTime)}</span>
           <span className={styles.statLabel}>Conversations all-time</span>
         </div>
+
+        <div className={styles.statCard}>
+          <span className={styles.statIcon}>
+            <CalendarClock size={20} strokeWidth={2.1} />
+          </span>
+          <span className={styles.statValue}>{analytics.busiestDay?.label ?? "—"}</span>
+          <span className={styles.statLabel}>
+            {analytics.busiestDay
+              ? `Busiest day (${fmt.format(analytics.busiestDay.count)})`
+              : "Busiest day"}
+          </span>
+        </div>
+
+        <div className={styles.statCard}>
+          <span className={`${styles.statIcon} ${styles.statIconCoral}`}>
+            <Clock size={20} strokeWidth={2.1} />
+          </span>
+          <span className={styles.statValue}>{analytics.busiestHour?.label ?? "—"}</span>
+          <span className={styles.statLabel}>
+            {analytics.busiestHour
+              ? `Busiest time (${fmt.format(analytics.busiestHour.count)})`
+              : "Busiest time"}
+          </span>
+        </div>
+      </div>
+
+      {/* What members ask about */}
+      <div className={styles.analyticsBlock}>
+        <h2 className={styles.blockTitle}>
+          <TrendingUp size={17} strokeWidth={2.25} />
+          What members ask about
+        </h2>
+        {analytics.topTopics.length === 0 ? (
+          <p className={styles.blockEmpty}>
+            No clear topics yet — this fills in as members ask about hours, location, giving and
+            more.
+          </p>
+        ) : (
+          <div className={styles.card}>
+            {analytics.topTopics.map((t) => (
+              <div className={styles.topicRow} key={t.label}>
+                <span className={styles.topicLabel}>{t.label}</span>
+                <span className={styles.topicBarTrack}>
+                  <span
+                    className={styles.topicBarFill}
+                    style={{ width: `${Math.round((t.count / maxTopic) * 100)}%` }}
+                  />
+                </span>
+                <span className={styles.topicCount}>{fmt.format(t.count)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Needs attention: unanswered + escalated */}
+      <div className={styles.analyticsBlock}>
+        <h2 className={styles.blockTitle}>
+          <AlertTriangle size={17} strokeWidth={2.25} />
+          Needs attention
+        </h2>
+        {analytics.needsAttention.length === 0 ? (
+          <p className={styles.blockEmpty}>
+            Nothing flagged. Questions the assistant couldn’t answer, and anyone it handed off,
+            will appear here so you know what to improve.
+          </p>
+        ) : (
+          <div className={styles.attentionList}>
+            {analytics.needsAttention.map((item, i) => (
+              <article className={styles.attentionItem} key={i}>
+                <span
+                  className={`${styles.attentionTag} ${
+                    item.kind === "escalated" ? styles.tagEscalated : styles.tagUnanswered
+                  }`}
+                >
+                  {item.kind === "escalated" ? (
+                    <LifeBuoy size={13} strokeWidth={2.25} />
+                  ) : (
+                    <HelpCircle size={13} strokeWidth={2.25} />
+                  )}
+                  {item.kind === "escalated"
+                    ? ATTENTION_REASON[item.note ?? ""] ?? "Handed off"
+                    : "Couldn’t answer"}
+                </span>
+                <p className={styles.attentionMsg}>{item.message}</p>
+                <span className={styles.attentionMeta}>
+                  {item.memberWaId && <span className={styles.attentionWho}>{item.memberWaId}</span>}
+                  <span className={styles.escTime}>
+                    <Clock size={13} strokeWidth={2.25} />
+                    {item.time}
+                  </span>
+                </span>
+              </article>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

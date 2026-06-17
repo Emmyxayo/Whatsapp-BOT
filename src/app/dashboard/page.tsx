@@ -1,5 +1,6 @@
 import { createServerSupabase } from "@/lib/supabase/server";
 import { supabase as db } from "@/lib/supabase";
+import { computeAnalytics } from "@/lib/analytics";
 import DashboardClient from "./DashboardClient";
 
 export const dynamic = "force-dynamic";
@@ -77,6 +78,29 @@ export default async function Dashboard() {
     time: fmtTime.format(new Date(e.created_at as string)),
   }));
 
+  // Analytics — pull a bounded recent slice of rows (last 90 days, capped) and
+  // aggregate in memory. Bounded so the dashboard stays fast as data grows.
+  const analyticsSince = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+
+  const [{ data: convRows }, { data: escRows }] = await Promise.all([
+    db
+      .from("conversations")
+      .select("member_wa_id, message_in, message_out, created_at")
+      .eq("organization_id", organizationId)
+      .gte("created_at", analyticsSince)
+      .order("created_at", { ascending: false })
+      .limit(3000),
+    db
+      .from("escalations")
+      .select("member_wa_id, message, reason, created_at")
+      .eq("organization_id", organizationId)
+      .gte("created_at", analyticsSince)
+      .order("created_at", { ascending: false })
+      .limit(100),
+  ]);
+
+  const analytics = computeAnalytics(convRows ?? [], escRows ?? []);
+
   return (
     <DashboardClient
       orgName={organization?.name ?? "Your organization"}
@@ -92,7 +116,11 @@ export default async function Dashboard() {
       }}
       faqs={faqs ?? []}
       escalations={escalations}
-      usage={{ thisMonth: totalThisMonth ?? 0, allTime: totalAllTime ?? 0 }}
+      analytics={{
+        thisMonth: totalThisMonth ?? 0,
+        allTime: totalAllTime ?? 0,
+        ...analytics,
+      }}
     />
   );
 }

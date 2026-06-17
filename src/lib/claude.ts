@@ -114,18 +114,59 @@ ${faqBlock}`;
     { role: "user", content: memberMessage },
   ];
 
-  const res = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: 400,
-    system,
-    messages,
-  });
+  try {
+    const res = await anthropic.messages.create({
+      model: MODEL,
+      max_tokens: 400,
+      system,
+      messages,
+    });
 
-  const text = res.content
-    .filter((b): b is Anthropic.TextBlock => b.type === "text")
-    .map((b) => b.text)
-    .join("\n")
-    .trim();
+    const text = res.content
+      .filter((b): b is Anthropic.TextBlock => b.type === "text")
+      .map((b) => b.text)
+      .join("\n")
+      .trim();
 
-  return text || "Welcome! Ask me about this organization's latest update or details.";
+    return text || "Welcome! Ask me about this organization's latest update or details.";
+  } catch (err) {
+    return handleClaudeError(err, ctx);
+  }
+}
+
+// Does this error mean the Anthropic account is out of money / over quota? When
+// it is, EVERY org's bot is degraded until it's topped up, so we surface it
+// loudly in the logs and flag it for the platform owner.
+function isCreditError(err: unknown): boolean {
+  const e = err as { status?: number; message?: string };
+  const msg = (e?.message ?? "").toLowerCase();
+  if (e?.status === 402) return true;
+  return (
+    e?.status === 400 &&
+    /credit|balance|billing|quota|insufficient funds|payment/.test(msg)
+  );
+}
+
+// Never let an API failure become silence or a crash for the member. We log the
+// real cause clearly and return a graceful, honest fallback (with the org's
+// contact if we have it) so the member knows to try again or reach out directly.
+function handleClaudeError(err: unknown, ctx: OrgContext): string {
+  if (isCreditError(err)) {
+    console.error(
+      "[Anthropic] CREDIT/BALANCE error — all assistants are degraded until the account is topped up:",
+      err
+    );
+    // TODO(platform-alert): alert the PLATFORM OWNER immediately and out-of-band
+    // (this is account-wide, not per-org). e.g. send to a Slack/Telegram webhook
+    // or a transactional email/SMS here. Keep it best-effort (try/catch) and
+    // ideally debounced so a burst of failures doesn't spam the alert channel.
+  } else {
+    console.error("[Anthropic] API failure while generating a reply:", err);
+    // TODO(platform-alert): consider alerting on a sustained spike of these too.
+  }
+
+  const contact = ctx.contact?.trim();
+  return contact
+    ? `Sorry — I'm having trouble answering right now. Please try again in a few minutes, or reach us directly:\n${contact}`
+    : "Sorry — I'm having trouble answering right now. Please try again in a few minutes.";
 }
