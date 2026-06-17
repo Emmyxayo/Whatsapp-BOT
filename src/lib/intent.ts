@@ -59,15 +59,29 @@ const INTENTS: Intent[] = [
   },
 ];
 
+// The fast-path replies in English (org info is usually stored in English, and
+// the lead-ins above are English). When the member is clearly NOT writing in
+// plain English, we skip it and let Claude handle the message — Claude detects
+// the language and translates the org's info into it. Triggers on any non-ASCII
+// letter (Yoruba/Igbo diacritics) or distinctive Pidgin/Yoruba/Hausa/Igbo words.
+const NON_ENGLISH_DIACRITICS = /[^\x00-\x7F]/;
+const NON_ENGLISH_WORDS =
+  /\b(abeg|wetin|una|dey|sabi|wahala|abi|oga|comot|nawa|haba|biko|kedu|ndewo|ndo|gini|nnoo|sannu|yaya|nawao|jowo|bawo|ekaaro|ekaasan|barka|kana|ina)\b/i;
+
+function looksNonEnglish(text: string): boolean {
+  return NON_ENGLISH_DIACRITICS.test(text) || NON_ENGLISH_WORDS.test(text);
+}
+
 // Returns a ready-to-send reply when a clear intent matches AND the org has
 // that field filled in. The reply names the area it relates to (e.g. "Our
 // hours:") so members get context, consistent with how Claude replies.
 // Returns null to defer to Claude (no match, message too long to be a simple
-// question, or the org hasn't provided that detail — in which case Claude gives
-// the honest "I don't have that" answer).
+// question, the message isn't plain English, or the org hasn't provided that
+// detail — in which case Claude gives the honest "I don't have that" answer).
 export function detectIntentReply(message: string, fields: IntentFields): string | null {
   const text = message.trim();
   if (!text || text.length > 120) return null;
+  if (looksNonEnglish(text)) return null;
 
   for (const intent of INTENTS) {
     if (intent.test.test(text)) {
