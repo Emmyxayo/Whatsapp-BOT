@@ -600,6 +600,65 @@
   color: var(--muted);
 }
 
+/* ---------- Handoffs ---------- */
+.navBadge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  background: var(--coral-deep, #e5484d);
+  border-radius: 999px;
+}
+.escMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.escWho {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+}
+.escNumber {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: none;
+}
+.escNumber:hover {
+  text-decoration: underline;
+}
+.escReason {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--coral-deep, #cf3a3f);
+  background: rgba(255, 138, 91, 0.14);
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+.escTime {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.escResolveForm {
+  margin-left: auto;
+}
+
 /* ---------- Animations ---------- */
 @keyframes fadeIn {
   from { opacity: 0; }

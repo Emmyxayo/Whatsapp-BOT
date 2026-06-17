@@ -99,3 +99,26 @@ export async function deleteFaq(_prev: ActionState, formData: FormData): Promise
   revalidatePath("/dashboard");
   return { ok: true, ts: Date.now() };
 }
+
+// ---- Handoffs: mark a member's escalation as resolved ----
+export async function resolveEscalation(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { db, organizationId } = await requireOrg();
+  if (!organizationId) return { ok: false, error: "No organization on this account." };
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { ok: false, error: "Missing escalation id." };
+
+  const { error } = await db
+    .from("escalations")
+    .update({ status: "resolved", resolved_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("organization_id", organizationId);
+
+  if (error) return { ok: false, error: "Couldn't update. Please try again." };
+
+  revalidatePath("/dashboard");
+  return { ok: true, ts: Date.now() };
+}

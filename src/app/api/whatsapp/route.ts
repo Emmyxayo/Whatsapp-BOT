@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { generateReply, type ConversationTurn } from "@/lib/claude";
 import { detectIntentReply } from "@/lib/intent";
+import { detectEscalation, escalationAcknowledgement } from "@/lib/escalation";
 import { sendWhatsAppText } from "@/lib/whatsapp";
 
 // A conversation is treated as a session within WhatsApp's 24-hour window.
@@ -93,6 +94,53 @@ export async function POST(req: NextRequest) {
             { role: "user" as const, content: r.message_in as string },
             { role: "assistant" as const, content: r.message_out as string },
           ]);
+
+    // Human handoff: before generating any answer, check whether this member
+    // needs a real person — they asked explicitly, sounded frustrated, or are
+    // repeating a question the bot didn't resolve. Uses their recent messages
+    // (regardless of session gap) to spot repeats. This takes priority over the
+    // intent fast-path and Claude so we never paper over a real need with a
+    // canned answer.
+    const priorMemberMessages = (recentRows ?? [])
+      .map((r) => r.message_in)
+      .filter((m): m is string => Boolean(m));
+    const escalationReason = detectEscalation(text, priorMemberMessages);
+
+    if (escalationReason) {
+      // Open an escalation for the organization to follow up on.
+      await supabase.from("escalations").insert({
+        organization_id: organization.id,
+        member_wa_id: from,
+        message: text,
+        reason: escalationReason,
+      });
+
+      const ack = escalationAcknowledgement(organization.name);
+      await sendWhatsAppText(phoneNumberId, from, ack);
+
+      // Log the exchange like any other so usage stays accurate.
+      await supabase.from("conversations").insert({
+        organization_id: organization.id,
+        member_wa_id: from,
+        message_in: text,
+        message_out: ack,
+      });
+
+      // TODO(admin-alert): notify the org's admins out-of-band so they don't
+      // have to be watching the dashboard. Two practical options:
+      //   1. Email — call a transactional email provider (e.g. Resend) here
+      //      with the org's admin email (add an `admin_email` column on
+      //      organizations, or look it up from the linked auth user). Keep it
+      //      best-effort: wrap in try/catch so a failed alert never blocks the
+      //      member's acknowledgement above.
+      //   2. WhatsApp — send a templated message to the admin's number via
+      //      sendWhatsAppText. Note Meta requires a pre-approved template to
+      //      message outside the 24-hour window, so this needs a registered
+      //      "escalation_alert" template before it can go live.
+      // For now escalations surface in the dashboard's Handoffs section.
+
+      return NextResponse.json({ ok: true });
+    }
 
     // Fast path: clear, common questions answered straight from the org's
     // fields — cheaper, faster, and perfectly consistent. Skipped on first

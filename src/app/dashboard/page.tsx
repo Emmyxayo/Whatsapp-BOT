@@ -53,6 +53,30 @@ export default async function Dashboard() {
     .eq("organization_id", organizationId)
     .gte("created_at", monthStart.toISOString());
 
+  // Open human-handoff requests, newest first. Times are formatted here on the
+  // server so the client renders a stable string (no hydration mismatch).
+  const { data: escalationRows } = await db
+    .from("escalations")
+    .select("id, member_wa_id, message, reason, created_at")
+    .eq("organization_id", organizationId)
+    .eq("status", "open")
+    .order("created_at", { ascending: false });
+
+  const fmtTime = new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  const escalations = (escalationRows ?? []).map((e) => ({
+    id: e.id as string,
+    memberWaId: e.member_wa_id as string,
+    message: (e.message ?? "") as string,
+    reason: (e.reason ?? "") as string,
+    time: fmtTime.format(new Date(e.created_at as string)),
+  }));
+
   return (
     <DashboardClient
       orgName={organization?.name ?? "Your organization"}
@@ -64,6 +88,7 @@ export default async function Dashboard() {
         contact: latest?.contact ?? "",
       }}
       faqs={faqs ?? []}
+      escalations={escalations}
       usage={{ thisMonth: totalThisMonth ?? 0, allTime: totalAllTime ?? 0 }}
     />
   );

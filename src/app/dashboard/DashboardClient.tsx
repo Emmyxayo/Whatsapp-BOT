@@ -19,6 +19,9 @@ import {
   X,
   CalendarDays,
   Infinity as InfinityIcon,
+  LifeBuoy,
+  User,
+  Clock,
 } from "lucide-react";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import {
@@ -26,34 +29,52 @@ import {
   createFaq,
   updateFaq,
   deleteFaq,
+  resolveEscalation,
   type ActionState,
 } from "./actions";
 import styles from "./dashboard.module.css";
 
 type Faq = { id: string; question: string; answer: string };
+type Escalation = {
+  id: string;
+  memberWaId: string;
+  message: string;
+  reason: string;
+  time: string;
+};
 type OrgInfo = { label: string; body: string; key_details: string; contact: string };
-type Tab = "info" | "faqs" | "share" | "usage";
+type Tab = "info" | "faqs" | "handoffs" | "share" | "usage";
 
 const EMPTY: ActionState = { ok: false };
 
 const NAV: { id: Tab; label: string; icon: typeof Info }[] = [
   { id: "info", label: "Info", icon: Info },
   { id: "faqs", label: "FAQs", icon: MessageCircleQuestion },
+  { id: "handoffs", label: "Handoffs", icon: LifeBuoy },
   { id: "share", label: "Share", icon: Share2 },
   { id: "usage", label: "Usage", icon: BarChart3 },
 ];
+
+// Friendly label for why a handoff was raised.
+const REASON_LABEL: Record<string, string> = {
+  explicit: "Asked for a person",
+  frustration: "Sounded frustrated",
+  repeated: "Repeated question",
+};
 
 export default function DashboardClient({
   orgName,
   whatsappNumber,
   info,
   faqs,
+  escalations,
   usage,
 }: {
   orgName: string;
   whatsappNumber: string | null;
   info: OrgInfo;
   faqs: Faq[];
+  escalations: Escalation[];
   usage: { thisMonth: number; allTime: number };
 }) {
   const router = useRouter();
@@ -99,6 +120,9 @@ export default function DashboardClient({
             >
               <Icon size={20} strokeWidth={2.1} />
               <span>{label}</span>
+              {id === "handoffs" && escalations.length > 0 && (
+                <span className={styles.navBadge}>{escalations.length}</span>
+              )}
             </button>
           ))}
         </nav>
@@ -107,6 +131,7 @@ export default function DashboardClient({
         <main className={styles.content}>
           {tab === "info" && <InfoSection info={info} />}
           {tab === "faqs" && <FaqsSection faqs={faqs} />}
+          {tab === "handoffs" && <HandoffsSection escalations={escalations} />}
           {tab === "share" && <ShareSection whatsappNumber={whatsappNumber} />}
           {tab === "usage" && <UsageSection usage={usage} />}
         </main>
@@ -416,7 +441,84 @@ function FaqModal({ faq, onClose }: { faq: Faq | null; onClose: () => void }) {
   );
 }
 
-/* ---------------- Section 3: Share ---------------- */
+/* ---------------- Section 3: Handoffs ---------------- */
+
+function HandoffsSection({ escalations }: { escalations: Escalation[] }) {
+  return (
+    <section>
+      <SectionHead
+        title="Handoffs"
+        sub="People your assistant flagged for a human. The member's been told you'll follow up — reply to them on WhatsApp, then mark it resolved."
+      />
+
+      {escalations.length === 0 ? (
+        <div className={styles.empty}>
+          <span className={styles.emptyIcon}>
+            <LifeBuoy size={26} strokeWidth={2} />
+          </span>
+          <h3 className={styles.emptyTitle}>No one’s waiting</h3>
+          <p className={styles.emptyText}>
+            When a member asks for a person, sounds stuck, or repeats a question, it’ll show up
+            here so you can step in.
+          </p>
+        </div>
+      ) : (
+        <div className={styles.faqGrid}>
+          {escalations.map((esc) => (
+            <EscalationCard key={esc.id} esc={esc} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function EscalationCard({ esc }: { esc: Escalation }) {
+  const [state, action] = useFormState(resolveEscalation, EMPTY);
+  const waLink = `https://wa.me/${esc.memberWaId.replace(/\D/g, "")}`;
+
+  return (
+    <article className={styles.faqCard}>
+      <div className={styles.escMeta}>
+        <span className={styles.escWho}>
+          <User size={15} strokeWidth={2.25} />
+          <a className={styles.escNumber} href={waLink} target="_blank" rel="noreferrer">
+            {esc.memberWaId}
+          </a>
+        </span>
+        {esc.reason && (
+          <span className={styles.escReason}>{REASON_LABEL[esc.reason] ?? esc.reason}</span>
+        )}
+      </div>
+
+      <p className={styles.faqAnswer}>{esc.message || "(no message captured)"}</p>
+
+      <div className={styles.faqActions}>
+        <span className={styles.escTime}>
+          <Clock size={14} strokeWidth={2.25} />
+          {esc.time}
+        </span>
+        {state.error && <span className={styles.formError}>{state.error}</span>}
+        <form action={action} className={styles.escResolveForm}>
+          <input type="hidden" name="id" value={esc.id} />
+          <ResolveButton />
+        </form>
+      </div>
+    </article>
+  );
+}
+
+function ResolveButton() {
+  const { pending } = useFormStatus();
+  return (
+    <button type="submit" className={styles.iconBtn} disabled={pending}>
+      <Check size={15} strokeWidth={2.5} />
+      {pending ? "Resolving…" : "Mark resolved"}
+    </button>
+  );
+}
+
+/* ---------------- Section 4: Share ---------------- */
 
 function ShareSection({ whatsappNumber }: { whatsappNumber: string | null }) {
   const digits = (whatsappNumber ?? "").replace(/\D/g, "");
@@ -481,7 +583,7 @@ function ShareSection({ whatsappNumber }: { whatsappNumber: string | null }) {
   );
 }
 
-/* ---------------- Section 4: Usage ---------------- */
+/* ---------------- Section 5: Usage ---------------- */
 
 function UsageSection({ usage }: { usage: { thisMonth: number; allTime: number } }) {
   const fmt = new Intl.NumberFormat();
