@@ -450,6 +450,332 @@
   padding-top: 18px;
 }
 
+/* ---------- Hero punch line ---------- */
+.heroPunch {
+  margin: 22px 0 0;
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-weight: 600;
+  font-size: clamp(17px, 2.2vw, 20px);
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+
+/* ---------- Centered section head ---------- */
+.sectionHeadCenter {
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+}
+
+/* ---------- Live demo ---------- */
+.demoWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+.demoCaption {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* ---------- Outcomes ---------- */
+.outcomeGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+.outcome {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 24px 24px 26px;
+  box-shadow: var(--shadow-sm);
+  height: 100%;
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+.outcome:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+}
+.outcomeIcon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: linear-gradient(145deg, var(--teal), var(--teal-deep));
+  box-shadow: 0 10px 22px -10px rgba(31, 182, 166, 0.75);
+}
+.outcomeTitle {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 17px;
+  letter-spacing: -0.015em;
+  margin: 2px 0 6px;
+  color: var(--ink);
+  line-height: 1.3;
+}
+.outcomeText {
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--muted);
+  margin: 0;
+}
+
+/* ---------- Who it's for ---------- */
+.verticalGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+.vertical {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 24px 22px 26px;
+  box-shadow: var(--shadow-sm);
+  height: 100%;
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+.vertical:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+}
+.verticalHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.verticalIcon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  display: grid;
+  place-items: center;
+  color: var(--teal-deep);
+  background: rgba(31, 182, 166, 0.12);
+}
+.verticalTitle {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 17px;
+  letter-spacing: -0.015em;
+  margin: 0;
+  color: var(--ink);
+  line-height: 1.25;
+}
+.verticalList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+.verticalItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.verticalItem svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--teal);
+}
+
+/* ---------- Pricing ---------- */
+.priceGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 22px;
+  align-items: stretch;
+}
+.priceCard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  padding: 30px 26px;
+  box-shadow: var(--shadow-sm);
+  height: 100%;
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+.priceCard:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+}
+.priceCardPopular {
+  border-color: rgba(31, 182, 166, 0.5);
+  box-shadow: 0 22px 60px -28px rgba(31, 182, 166, 0.6);
+}
+.priceBadge {
+  position: absolute;
+  top: -13px;
+  left: 26px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #fff;
+  background: linear-gradient(150deg, var(--coral), var(--coral-deep));
+  padding: 6px 13px;
+  border-radius: 999px;
+  box-shadow: 0 10px 24px -10px rgba(255, 138, 91, 0.9);
+}
+.priceName {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 18px;
+  letter-spacing: -0.015em;
+  margin: 0;
+  color: var(--ink);
+}
+.priceAmount {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin: 14px 0 0;
+}
+.priceValue {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 34px;
+  letter-spacing: -0.025em;
+  color: var(--ink);
+}
+.pricePeriod {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.priceBlurb {
+  margin: 12px 0 0;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+.priceList {
+  list-style: none;
+  margin: 22px 0 26px;
+  padding: 22px 0 0;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+.priceItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14.5px;
+  line-height: 1.4;
+  color: var(--ink);
+}
+.priceItem svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--teal-deep);
+}
+.btnBlock {
+  width: 100%;
+  margin-top: auto;
+}
+.priceCustom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 22px;
+  margin-top: 24px;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 28px 30px;
+}
+.priceCustomTitle {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 20px;
+  letter-spacing: -0.015em;
+  margin: 0 0 6px;
+  color: var(--ink);
+}
+.priceCustomText {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--muted);
+  max-width: 52ch;
+}
+
+/* ---------- Why we built Relay ---------- */
+.story {
+  max-width: 720px;
+  margin: 0 auto;
+  text-align: center;
+}
+.storyMark {
+  display: inline-grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  color: var(--coral-deep);
+  background: rgba(255, 138, 91, 0.14);
+  margin-bottom: 18px;
+}
+.story .kicker {
+  display: block;
+  margin-bottom: 4px;
+}
+.story .sectionTitle {
+  margin-top: 0;
+}
+.storyText {
+  margin: 18px 0 0;
+  font-size: 17px;
+  line-height: 1.68;
+  color: var(--muted);
+}
+.storySign {
+  margin: 26px 0 0;
+  font-size: 15px;
+  line-height: 1.6;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+/* ---------- Dark CTA secondary button ---------- */
+.btnDark {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+.btnDark:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+.ctaInner .ctaRow {
+  justify-content: center;
+}
+
 /* ---------- Responsive ---------- */
 @media (max-width: 900px) {
   .heroInner {
@@ -461,9 +787,21 @@
     order: -1;
   }
   .steps,
-  .featGrid {
+  .featGrid,
+  .outcomeGrid,
+  .priceGrid {
     grid-template-columns: 1fr;
     gap: 16px;
+  }
+  .verticalGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .priceCardPopular {
+    order: -1;
+  }
+  .priceCustom {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 
@@ -476,5 +814,11 @@
   }
   .ctaRow .btn {
     flex: 1 1 auto;
+  }
+  .verticalGrid {
+    grid-template-columns: 1fr;
+  }
+  .priceCustom .btn {
+    width: 100%;
   }
 }
