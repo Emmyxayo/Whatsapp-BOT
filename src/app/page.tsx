@@ -23,6 +23,8 @@ import ChatCard from "@/components/ChatCard";
 import DemoChat from "@/components/DemoChat";
 import Faq from "@/components/Faq";
 import Reveal from "@/components/Reveal";
+import SiteNav from "@/components/SiteNav";
+import ScrollToTop from "@/components/ScrollToTop";
 import styles from "./page.module.css";
 
 /* -------------------------------------------------------------------------- */
@@ -173,34 +175,8 @@ const verticals = [
 export default function Home() {
   return (
     <div className={styles.page}>
-      {/* ---- Nav ---- */}
-      <nav className={styles.nav}>
-        <div className={`${styles.container} ${styles.navInner}`}>
-          <Link href="/" className={styles.brand}>
-            <span className={styles.brandMark}>
-              <MessagesSquare size={18} strokeWidth={2.25} />
-            </span>
-            Relay
-          </Link>
-          <div className={styles.navLinks}>
-            <a href="#how" className={`${styles.navLink} ${styles.navLinkHideSm}`}>
-              How it works
-            </a>
-            <a href="#pricing" className={`${styles.navLink} ${styles.navLinkHideSm}`}>
-              Pricing
-            </a>
-            <a href="#faq" className={`${styles.navLink} ${styles.navLinkHideSm}`}>
-              FAQ
-            </a>
-            <Link href={START_HREF} className={styles.navLink}>
-              Sign in
-            </Link>
-            <Link href={START_HREF} className={`${styles.btn} ${styles.btnPrimary} ${styles.btnSm}`}>
-              Get started
-            </Link>
-          </div>
-        </div>
-      </nav>
+      {/* ---- Nav (sticky, scroll-aware) ---- */}
+      <SiteNav startHref={START_HREF} />
 
       {/* ---- Hero ---- */}
       <header className={styles.hero}>
@@ -527,6 +503,7 @@ export default function Home() {
             <Link href={START_HREF}>Sign in</Link>
             <Link href="/privacy">Privacy</Link>
             <Link href="/terms">Terms</Link>
+            <Link href="/refund">Refund Policy</Link>
           </div>
           <div className={styles.footerCopy}>
             © {new Date().getFullYear()} Relay — a product of Xayion Tech, Lagos, Nigeria. The
@@ -534,6 +511,8 @@ export default function Home() {
           </div>
         </div>
       </footer>
+
+      <ScrollToTop />
     </div>
   );
 }

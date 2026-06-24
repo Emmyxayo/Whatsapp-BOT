@@ -82,7 +82,7 @@ export default function TermsPage() {
           <h2>Contact us</h2>
           <p>
             Questions about these terms? Email us at{" "}
-            <a href="mailto:support@relay.app">support@relay.app</a>.
+            <a href="mailto:emmyoyebade@gmail.com">emmyoyebade@gmail.com</a>.
           </p>
         </div>
       </div>

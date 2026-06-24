@@ -80,7 +80,7 @@ export default function PrivacyPage() {
           <h2>Contact us</h2>
           <p>
             If you have any questions about this policy or your data, email us at{" "}
-            <a href="mailto:support@relay.app">support@relay.app</a>.
+            <a href="mailto:emmyoyebade@gmail.com">emmyoyebade@gmail.com</a>.
           </p>
         </div>
       </div>
