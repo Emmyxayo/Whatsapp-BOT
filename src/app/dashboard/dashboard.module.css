@@ -93,7 +93,8 @@
   display: grid;
   grid-template-columns: 232px 1fr;
   gap: clamp(20px, 3vw, 36px);
-  max-width: 1080px;
+  /* 1080 content + 2×32 max padding (border-box) preserves desktop width. */
+  max-width: 1144px;
   margin: 0 auto;
   padding: clamp(20px, 3vw, 36px) clamp(16px, 4vw, 32px);
   align-items: start;

@@ -17,7 +17,8 @@
 
 .container {
   width: 100%;
-  max-width: 760px;
+  /* 760 reading column + 2×24 padding (border-box) preserves desktop width. */
+  max-width: 808px;
   margin: 0 auto;
   padding: clamp(48px, 8vw, 88px) 24px clamp(64px, 9vw, 104px);
 }

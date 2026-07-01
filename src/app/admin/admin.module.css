@@ -92,7 +92,8 @@
 
 /* ---------- Content ---------- */
 .content {
-  max-width: 1080px;
+  /* 1080 content + 2×32 max padding (border-box) preserves desktop width. */
+  max-width: 1144px;
   margin: 0 auto;
   padding: clamp(20px, 3vw, 36px) clamp(16px, 4vw, 32px);
 }
@@ -600,6 +601,12 @@
   .fieldRow {
     grid-template-columns: 1fr;
     gap: 0;
+  }
+  /* minmax(300px,…) won't shrink below 300px and would overflow a ~288px
+     content area on a 320px phone — force a single column. */
+  .orgGrid,
+  .summaryGrid {
+    grid-template-columns: 1fr;
   }
 }
 

@@ -1,3 +1,4 @@
+import "./globals.css";
 import { Space_Grotesk, Inter } from "next/font/google";
 
 const display = Space_Grotesk({

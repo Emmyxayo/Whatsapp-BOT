@@ -1,0 +1,34 @@
+/* -------------------------------------------------------------------------- */
+/*  Global reset — applies to every page (landing, legal, login, app shells).  */
+/*  Without a border-box reset, every `.container` (width:100% + 24px padding)  */
+/*  renders 48px wider than the viewport, causing horizontal scroll on mobile.  */
+/* -------------------------------------------------------------------------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+html,
+body {
+  margin: 0;
+  width: 100%;
+  max-width: 100%;
+  /* Safety net for stray decorative overflow (blurred glows with negative
+     insets, etc). `clip` — unlike `hidden` — does NOT create a scroll
+     container, so the sticky nav keeps working. */
+  overflow-x: clip;
+}
+
+/* Media never forces the page wider than its column. */
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+  height: auto;
+}

@@ -20,7 +20,9 @@
 
 .container {
   width: 100%;
-  max-width: 1140px;
+  /* 1140 content column + 2×24 padding (border-box) — preserves the exact
+     desktop content width now that box-sizing is border-box globally. */
+  max-width: 1188px;
   margin: 0 auto;
   padding: 0 24px;
 }
@@ -824,11 +826,31 @@
   .navLinks {
     gap: 14px;
   }
+  /* Headline scales down further so it doesn't overflow / wrap awkwardly
+     on a 320–375px phone. */
+  .headline {
+    font-size: clamp(29px, 8.5vw, 40px);
+    line-height: 1.08;
+  }
+  /* Tighter, consistent spacing under every section heading on mobile. */
+  .sectionHead {
+    margin-bottom: 32px;
+  }
+  /* Stack CTAs into a single full-width column — comfortably tappable,
+     never squished side by side. */
+  .ctaRow {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
   .ctaRow .btn {
-    flex: 1 1 auto;
+    width: 100%;
   }
   .verticalGrid {
     grid-template-columns: 1fr;
+  }
+  .priceCustom {
+    padding: 24px 22px;
   }
   .priceCustom .btn {
     width: 100%;
